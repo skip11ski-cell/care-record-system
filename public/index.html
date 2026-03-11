@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>介護記録管理画面</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- ログイン画面 -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-box">
+      <h2>介護記録管理システム</h2>
+      <p class="login-sub">管理者パスワードを入力してください</p>
+      <div class="form-group">
+        <input type="password" id="loginPassword" placeholder="パスワード" onkeydown="if(event.key==='Enter')login()">
+      </div>
+      <button class="btn btn-search" onclick="login()" style="width:100%">ログイン</button>
+      <p class="login-error" id="loginError"></p>
+    </div>
+  </div>
+
+  <!-- メイン画面 -->
+  <div id="mainApp" style="display:none">
+  <header>
+    <div class="header-inner">
+      <h1>介護記録管理</h1>
+      <p class="header-sub">LINE記録自動生成システム</p>
+      <button class="btn-logout" onclick="logout()">ログアウト</button>
+    </div>
+  </header>
+
+  <!-- タブ -->
+  <nav class="tabs">
+    <button class="tab active" onclick="switchTab('records')">記録管理</button>
+    <button class="tab" onclick="switchTab('memos')">管理者メモ</button>
+    <button class="tab" onclick="switchTab('clients')">利用者マスタ</button>
+  </nav>
+
+  <!-- === 記録管理タブ === -->
+  <main id="tabRecords">
+    <!-- 統計カード -->
+    <section class="stats" id="statsSection">
+      <div class="stat-card clickable" onclick="filterBystat('today')">
+        <span class="stat-value" id="statToday">-</span>
+        <span class="stat-label">今日の記録</span>
+      </div>
+      <div class="stat-card pending clickable" onclick="filterBystat('pending')">
+        <span class="stat-value" id="statPending">-</span>
+        <span class="stat-label">未承認</span>
+      </div>
+      <div class="stat-card approved clickable" onclick="filterBystat('todayApproved')">
+        <span class="stat-value" id="statApproved">-</span>
+        <span class="stat-label">今日の承認済</span>
+      </div>
+      <div class="stat-card clickable" onclick="filterBystat('')">
+        <span class="stat-value" id="statTotal">-</span>
+        <span class="stat-label">全記録</span>
+      </div>
+    </section>
+
+    <!-- フィルター -->
+    <section class="filters">
+      <div class="filter-group">
+        <label>ステータス</label>
+        <select id="filterStatus" onchange="loadRecords(0)">
+          <option value="">すべて</option>
+          <option value="pending" selected>未承認</option>
+          <option value="approved">承認済み</option>
+          <option value="rejected">差し戻し</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>利用者名</label>
+        <input type="text" id="filterClient" placeholder="名前で検索">
+      </div>
+      <div class="filter-group">
+        <label>開始日</label>
+        <input type="date" id="filterDateFrom">
+      </div>
+      <div class="filter-group">
+        <label>終了日</label>
+        <input type="date" id="filterDateTo">
+      </div>
+      <button class="btn btn-search" onclick="loadRecords()">検索</button>
+      <button class="btn btn-export" onclick="exportCsv()">CSVエクスポート</button>
+    </section>
+
+    <!-- 月選択バー -->
+    <section class="month-selector" id="monthSelector" style="display:none">
+      <button class="btn btn-month-nav" onclick="changeMonth(-1)">&lt; 前月</button>
+      <span class="month-label" id="monthLabel">2026年3月</span>
+      <button class="btn btn-month-nav" onclick="changeMonth(1)">翌月 &gt;</button>
+    </section>
+
+    <!-- 記録一覧 -->
+    <section class="records-list" id="recordsList">
+      <p class="empty-message">記録がありません。LINEからメッセージを送ると、ここに記録が表示されます。</p>
+    </section>
+
+    <!-- ページネーション -->
+    <section class="pagination" id="pagination"></section>
+  </main>
+
+  <!-- === 管理者メモタブ === -->
+  <main id="tabMemos" style="display:none">
+    <section class="memo-header">
+      <h2>管理者メモ</h2>
+      <div class="memo-date-nav">
+        <button class="btn btn-month-nav" onclick="changeMemoDate(-1)">&lt; 前日</button>
+        <span class="month-label" id="memoDateLabel"></span>
+        <button class="btn btn-month-nav" onclick="changeMemoDate(1)">翌日 &gt;</button>
+      </div>
+    </section>
+
+    <div class="memo-sections-grid">
+      <section class="memo-section">
+        <h3>本日のイベント</h3>
+        <div id="memoEventList" class="memo-list"></div>
+        <div class="memo-input-row">
+          <input type="text" id="memoEventInput" placeholder="イベント内容を入力" onkeydown="if(event.key==='Enter')addMemo('event')">
+          <button class="btn btn-search" onclick="addMemo('event')">追加</button>
+        </div>
+      </section>
+
+      <section class="memo-section">
+        <h3>本日の会議・その他</h3>
+        <div id="memoMeetingList" class="memo-list"></div>
+        <div class="memo-input-row">
+          <input type="text" id="memoMeetingInput" placeholder="会議・その他の内容を入力" onkeydown="if(event.key==='Enter')addMemo('meeting')">
+          <button class="btn btn-search" onclick="addMemo('meeting')">追加</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- === 利用者マスタタブ === -->
+  <main id="tabClients" style="display:none">
+    <section class="client-header">
+      <h2>利用者一覧</h2>
+      <button class="btn btn-search" onclick="openClientModal()">新規登録</button>
+    </section>
+    <section class="client-list" id="clientList">
+      <p class="empty-message">利用者が登録されていません。</p>
+    </section>
+  </main>
+
+  <!-- 記録編集モーダル -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>記録の確認・編集</h3>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="original-message">
+          <label>LINEからの原文</label>
+          <div class="raw-text" id="editRaw"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="editClient">利用者名</label>
+          <input type="text" id="editClient">
+        </div>
+
+        <div class="form-group">
+          <label for="editServiceType">サービス内容</label>
+          <select id="editServiceType">
+            <option>入浴介助</option>
+            <option>食事介助</option>
+            <option>排泄介助</option>
+            <option>レクリエーション</option>
+            <option>送迎</option>
+            <option>バイタル測定</option>
+            <option>口腔ケア</option>
+            <option>機能訓練</option>
+            <option>その他</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="editObservation">様子・観察</label>
+          <textarea id="editObservation" rows="4"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="editNotes">特記事項</label>
+          <textarea id="editNotes" rows="3"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-delete" onclick="deleteRecord()">削除</button>
+        <button class="btn btn-reject" onclick="rejectRecord()">差し戻し</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-save" onclick="saveRecord()">保存</button>
+        <button class="btn btn-approve" onclick="approveRecord()">承認</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 利用者編集モーダル -->
+  <div class="modal-overlay" id="clientModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="clientModalTitle">利用者登録</h3>
+        <button class="modal-close" onclick="closeClientModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="clientName">利用者名（必須）</label>
+          <input type="text" id="clientName" placeholder="例：田中太郎">
+        </div>
+        <div class="form-group">
+          <label for="clientKana">ふりがな</label>
+          <input type="text" id="clientKana" placeholder="例：たなかたろう">
+        </div>
+        <div class="form-group">
+          <label for="clientNotes">備考</label>
+          <textarea id="clientNotes" rows="2" placeholder="担当者やケアの注意点など"></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-reject" id="clientDeleteBtn" onclick="deleteClientRecord()" style="display:none">削除</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-save" onclick="saveClient()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /mainApp -->
+
+  <script src="app.js"></script>
+</body>
+</html>
