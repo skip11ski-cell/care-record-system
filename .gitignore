@@ -5,7 +5,6 @@ __pycache__/
 venv/
 care_records.db
 *.db-journal
-.DS_Store
-
 *.db-shm
 *.db-wal
+.DS_Store
