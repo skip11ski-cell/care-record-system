@@ -1,172 +1,87 @@
-# 介護現場向け LINE 記録自動生成システム
+# 介護記録 LINE 連携（雛形）
 
-デイサービスの介護スタッフが LINE で利用者の様子を文章入力すると、AI が介護記録様式に自動変換するシステムです。サービス提供責任者は管理画面で確認・承認するだけで記録業務が完了します。
+LINE のテキストメッセージを Webhook で受け取り、SQLite に保存してブラウザで一覧表示します。
 
-## システム構成
+## 必要なもの
 
-```
-LINE（スタッフ入力）
-    ↓
-LINE Messaging API → Webhook
-    ↓
-Node.js サーバー → OpenAI API（記録変換）
-    ↓
-SQLite（記録保存）
-    ↓
-管理画面（確認・承認・CSVエクスポート）
-```
+- Python 3.11 以上推奨
+- LINE Developers の [Messaging API](https://developers.line.biz/ja/docs/messaging-api/) チャネル（チャネルシークレット・アクセストークン）
 
-## 機能一覧
-
-- LINE からの自由文テキスト受信
-- AI による介護記録フォーマット自動変換（OpenAI / Dify 切替対応）
-- 変換結果の LINE 即時返信
-- 管理画面（パスワード認証付き）
-  - 記録の一覧表示・フィルタ検索・ページネーション
-  - 記録の編集・承認・差し戻し（確認ダイアログ付き）
-  - 統計ダッシュボード
-  - CSV エクスポート
-- 利用者マスタ管理（名前の揺れ自動正規化）
-
-## セットアップ手順
-
-### 1. 必要なもの
-
-- Node.js 18 以上
-- LINE Developers アカウント
-- OpenAI API キー
-
-### 2. LINE Messaging API の設定
-
-1. [LINE Developers](https://developers.line.biz/ja/) にログイン
-2. プロバイダーを作成 → Messaging API チャネルを作成
-3. 以下をメモ：
-   - **チャネルシークレット**（チャネル基本設定）
-   - **チャネルアクセストークン**（Messaging API 設定で発行）
-4. Webhook URL に `https://あなたのサーバー/webhook` を設定
-5. 「Webhook の利用」をオン、「応答メッセージ」をオフ
-
-### 3. インストール
+## セットアップ
 
 ```bash
-cd care-record-system
-npm install
-```
-
-### 4. 環境変数の設定
-
-```bash
+cd このフォルダ
+python3 -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 cp .env.example .env
+# .env に LINE_CHANNEL_SECRET と LINE_CHANNEL_ACCESS_TOKEN を記入
 ```
 
-`.env` を編集して以下を入力：
-
-```
-LINE_CHANNEL_SECRET=あなたのチャネルシークレット
-LINE_CHANNEL_ACCESS_TOKEN=あなたのアクセストークン
-AI_PROVIDER=openai
-OPENAI_API_KEY=あなたのOpenAI APIキー
-ADMIN_PASSWORD=管理画面のパスワード
-PORT=3000
-```
-
-### 5. 起動
+## 起動
 
 ```bash
-npm start
+source .venv/bin/activate
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-管理画面: http://localhost:3000
+- 一覧: http://127.0.0.1:8000/
+- JSON: http://127.0.0.1:8000/api/records
+- Webhook URL（LINE に登録）: `https://（公開HTTPS）/callback`
 
-### 6. 外部公開（LINE Webhook 用）
+ローカルでは [ngrok](https://ngrok.com/) などで HTTPS のトンネルを張り、その URL + `/callback` を LINE の Webhook に設定してください。テスト時のみ `.env` で `DEV_SKIP_LINE_SIGNATURE=true` にすると署名なしの POST で動作確認できます（本番では使わないでください）。
 
-ローカル開発時は ngrok を使って公開できます。
+## リッチメニュー（項目分け）
 
-1. [ngrok](https://dashboard.ngrok.com/get-started/your-authtoken) で無料アカウントを作成し、Authtoken を取得
-2. `.env` に `NGROK_AUTHTOKEN=あなたのトークン` を追加
-3. 以下でサーバーとトンネルを同時起動：
+画面下の **「記録メニュー」** から、バイタル・入浴・食事・体操レク・その他・サ責に連絡 のいずれかをタップしてから、内容をテキストで送ると、その区分で保存されます。
 
-```bash
-npm run start:tunnel
-```
+1. チャネルアクセストークンを環境変数に渡し、**プロジェクトのルートで** 次を実行します。  
+   `export LINE_CHANNEL_ACCESS_TOKEN='（長期トークン）'`  
+   `python scripts/create_rich_menu.py`
+2. トーク画面にリッチメニューが表示されます（既に別メニューがある場合は上書きされます）。
+3. **同じ区分で続けて入力する**場合は、メニューを何度も押さなくても、前回選んだ区分のまま保存されます。**別の区分に変えるときだけ**、もう一度メニューから選んでください。
+4. メニューを一度も選ばずに送ったテキストは **未分類** として保存されます。
 
-表示される URL（`https://xxxx.ngrok-free.app/webhook`）を LINE Developers の Webhook URL に設定してください。
+画像はスクリプトが自動生成する簡易プレースホルダです。あとから [LINE Official Account Manager](https://manager.line.biz/) などでデザイン差し替えも可能です。
 
-## Render へのデプロイ
+## クラウドで動かす（概要）
 
-1. GitHub にリポジトリを作成しプッシュ
-2. [Render](https://render.com/) でアカウント作成
-3. New → Web Service → GitHub リポジトリを選択
-4. Root Directory に `care-record-system` を指定
-5. Build Command: `npm install`
-6. Start Command: `node server.js`
-7. Environment Variables に `.env` の内容を設定
-8. Deploy
-9. デプロイ完了後、表示される URL + `/webhook` を LINE Developers の Webhook URL に設定
+パソコンを閉じても動かすには、**アプリをインターネット上のサーバーに載せる**必要があります。流れは次のとおりです。
 
-## リッチメニュー（呼び出しボタン）
+1. **このプロジェクトを GitHub などにアップロード**（非公開リポジトリで可）
+2. **PaaS を1つ選ぶ**（例: [Railway](https://railway.app/)、[Render](https://render.com/)、[Fly.io](https://fly.io/)）
+3. そのサービスで **PostgreSQL を追加**し、発行された **`DATABASE_URL`** を環境変数に設定する
+4. 同じく環境変数に **`LINE_CHANNEL_SECRET`** と **`LINE_CHANNEL_ACCESS_TOKEN`** を入れる（いまの「介護記録システム」チャネルの値）
+5. デプロイ後に表示される **HTTPS の URL**（例: `https://xxx.onrender.com`）を、LINE Developers の **Webhook URL** に  
+   **`https://（そのドメイン）/callback`** として登録する
+6. ブラウザで **`https://（そのドメイン）/`** を開くと一覧が見られる
 
-「呼び出し・管理者」「呼び出し・看護師」を LINE のリッチメニューに追加し、タップで電話発信できるようにする機能です。
+このリポジトリには **`Dockerfile`** があるので、Docker 対応のサービスなら「リポジトリを接続してビルド」でよいことが多いです。
 
-### 設定手順
+**注意:** コンテナだけで SQLite を使うと、再起動でデータが消えることがあります。**本番は PostgreSQL + `DATABASE_URL` を推奨**します。
 
-1. `.env` に電話番号を追加（ハイフンなし）：
-   ```
-   MANAGER_PHONE=0312345678
-   NURSE_PHONE=09012345678
-   ```
+### Render でデプロイする（おすすめの流れ）
 
-2. 以下のコマンドを実行：
-   ```bash
-   npm run setup-rich-menu
-   ```
+1. **GitHub にこのフォルダを push** する（アカウント作成とリポジトリ作成がまだなら先に実施）。
+2. [Render](https://render.com/) にログインし、**Dashboard → New → Blueprint** を選ぶ。
+3. GitHub を連携し、**このリポジトリ**と **`render.yaml` があるブランチ**（通常は `main`）を指定して進む。
+4. 画面の指示で Blueprint を適用すると、**Web サービス（Docker）** と **PostgreSQL** が作成される。
+5. デプロイが始まったら、**Web サービス `kaigo-line-app` → Environment** を開き、次の2つを手入力する（`sync: false` のため初回は空です）。
+   - `LINE_CHANNEL_SECRET` … LINE Developers のチャネルシークレット
+   - `LINE_CHANNEL_ACCESS_TOKEN` … チャネルアクセストークン（長期）
+6. **Save** 後、**Manual Deploy** で再デプロイすると確実です。
+7. Web サービスの **URL**（例: `https://kaigo-line-app.onrender.com`）をコピーする。
+8. [LINE Developers](https://developers.line.biz/) で該当チャネルを開き、**Messaging API 設定 → Webhook URL** を  
+   **`https://（手順7のホスト名）/callback`** にし、**Webhook の利用**をオン、**検証**が成功するか確認する。
+9. ブラウザで **`https://（同じホスト名）/`** を開き、画面が表示されるか確認する。
 
-3. LINE アプリでボットを開き、画面下部に青（管理者）・緑（看護師）のメニューが表示されることを確認
+**料金の目安:** Render の PostgreSQL は無料枠がない／制限がある場合があります。ダッシュボードでプランを確認してください。外部の無料 PostgreSQL（例: [Neon](https://neon.tech/)）を使う場合は、Blueprint の `databases` を外し、Web サービスの環境変数にだけ **`DATABASE_URL`**（接続文字列）を手動で設定する方法もあります。
 
-※ 画像をカスタマイズしたい場合は、2500×1686px の PNG を作成し、`setup-rich-menu.js` の画像生成部分を差し替えてください。
+**無料 Web サービスの挙動:** 無料プランの Web はしばらくアクセスがないとスリープし、**最初の1回目だけ数十秒かかる**ことがあります。
 
-## 使い方
+## 構成
 
-### スタッフ（LINE 側）
-
-LINE 公式アカウントを友だち追加し、利用者の様子を自由に文章で送信します。
-
-**入力例：**
-> 田中さん、今日の入浴はいつもより時間がかかりました。少し疲れた様子でしたが、湯船につかると気持ちよさそうにされていました
-
-**AI が自動変換して返信：**
-```
-📋 介護記録 #1
-━━━━━━━━━━━━━━
-📅 日付：2026年3月7日
-👤 利用者：田中 様
-🏥 サービス：入浴介助
-
-【様子・観察】
-入浴時間が通常より延長。疲労感あり。入浴中は表情穏やかで快適な様子。
-
-【特記事項】
-疲労感が見られるため、今後の入浴時間に配慮が必要。
-━━━━━━━━━━━━━━
-```
-
-### サービス提供責任者（管理画面）
-
-ブラウザで管理画面にアクセスし、パスワードでログイン後、AI が変換した記録を確認・修正・承認します。
-
-## ファイル構成
-
-```
-care-record-system/
-├── server.js          # Express サーバー + LINE Webhook + REST API + 認証
-├── ai-converter.js    # AI による介護記録変換（OpenAI/Dify 切替対応）
-├── database.js        # SQLite データベース操作（記録・スタッフ・利用者マスタ）
-├── package.json
-├── .env.example       # 環境変数テンプレート
-├── .gitignore
-├── render.yaml        # Render デプロイ設定
-└── public/            # 管理画面
-    ├── index.html     # 管理画面（記録管理タブ + 利用者マスタタブ）
-    ├── style.css      # スタイル（レスポンシブ対応）
-    └── app.js         # フロントエンド（認証・ページネーション・CSV出力）
-```
+- `app/main.py` … FastAPI（`/callback`, `/`, `/api/records`）
+- `app/models.py` … 記録テーブル `care_records`
+- `care_records.db` … ローカル開発時は SQLite（初回起動時に自動作成）
+- `DATABASE_URL` … 設定時は PostgreSQL などに接続（クラウド本番向け）

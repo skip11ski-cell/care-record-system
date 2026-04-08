@@ -1,6 +1,11 @@
-node_modules/
 .env
+__pycache__/
+*.py[cod]
+.venv/
+venv/
 care_records.db
-care_records.db-wal
-care_records.db-shm
-rich-menu-temp.png
+*.db-journal
+.DS_Store
+
+*.db-shm
+*.db-wal
