@@ -79,6 +79,25 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 **無料 Web サービスの挙動:** 無料プランの Web はしばらくアクセスがないとスリープし、**最初の1回目だけ数十秒かかる**ことがあります。
 
+### Render のログに OpenAI / Node.js が出る場合
+
+このリポジトリは **Python（FastAPI）+ Dockerfile** のみです。`ai-converter.js` や `OPENAI_API_KEY` は **含まれません**。ログに
+
+- `OPENAI_API_KEY` が欠落
+- `new OpenAI(`
+
+などが出るときは、**Render 上でまだ古い「Node の Web サービス」が動いている**か、**ビルド／起動コマンドが Dockerfile ではなく `npm start` / `node server.js` のまま**になっている可能性が高いです。
+
+**対処:**
+
+1. **デプロイ先の Web サービス**が、この GitHub リポジトリの **最新 `main`（`Dockerfile` あり・`package.json` なし）** を向いているか確認する。
+2. Render の **Settings → Build & Deploy** で次を確認する。  
+   - **Environment** が **Docker** になっている（Native Node / 空の Buildpack ではない）。  
+   - **Dockerfile Path** が `Dockerfile`（リポジトリ直下）になっている。  
+   - **Start Command** に `node` や `npm` が入っていない（空なら Dockerfile の `CMD` が使われるのが正しい）。
+3. 古い **Node 用の Web サービス**が別名で残っている場合は、ログがそちらを見ていることがある。**Python 用サービス**のログを開く。
+4. 再デプロイ後、起動ログに `Starting care-record API (Python/FastAPI, uvicorn)` と出れば **Python が動いています**。AI 整形は **`GEMINI_API_KEY`** のみ（OpenAI は不要）。
+
 ## 構成
 
 - `app/main.py` … FastAPI（`/callback`, `/`, `/api/records`）

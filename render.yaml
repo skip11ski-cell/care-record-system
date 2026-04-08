@@ -2,12 +2,14 @@
 # https://render.com/docs/infrastructure-as-code
 #
 # 適用後、ダッシュボードの Environment で
-# LINE_CHANNEL_SECRET / LINE_CHANNEL_ACCESS_TOKEN を入力してください（sync: false）。
+# LINE_CHANNEL_SECRET / LINE_CHANNEL_ACCESS_TOKEN / GEMINI_API_KEY 等を入力（sync: false）。
 
 services:
   - type: web
     name: kaigo-line-app
     runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
@@ -17,6 +19,10 @@ services:
       - key: LINE_CHANNEL_SECRET
         sync: false
       - key: LINE_CHANNEL_ACCESS_TOKEN
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
         sync: false
 
 databases:

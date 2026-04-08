@@ -29,6 +29,13 @@ templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "tem
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    # Render ログで実行スタックを確認しやすくする（Node / OpenAI 旧構成との切り分け用）
+    gk = settings.gemini_api_key.strip()
+    logger.info(
+        "Starting care-record API (Python/FastAPI, uvicorn). "
+        "AI整形: Gemini %s",
+        "有効 (GEMINI_API_KEY 設定済み)" if gk else "未使用 (キーなし)",
+    )
     yield
 
 
