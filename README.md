@@ -98,6 +98,8 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 3. 古い **Node 用の Web サービス**が別名で残っている場合は、ログがそちらを見ていることがある。**Python 用サービス**のログを開く。
 4. 再デプロイ後、起動ログに `Starting care-record API (Python/FastAPI, uvicorn)` と出れば **Python が動いています**。AI 整形は **`GEMINI_API_KEY`** のみ（OpenAI は不要）。
 
+**Gemini が常に失敗するとき:** ログに `Gemini: trying model=` と続けて `success` または `404` / `failed` が出ます。モデル名は Google 側で変わることがあるため、`GEMINI_MODEL` を空にするか `gemini-2.5-flash` を試してください（アプリが複数のモデル名を順に試します）。
+
 ## 構成
 
 - `app/main.py` … FastAPI（`POST /callback` と `POST /webhook` は同一の LINE Webhook、`/`, `/api/records`）
