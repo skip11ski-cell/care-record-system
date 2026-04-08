@@ -96,6 +96,7 @@ async def _handle_message(user_id: str, reply_token: Optional[str], ev: Dict[str
 
         body = text
         ai_failed = False
+        ai_ok = False
         if settings.gemini_api_key.strip():
             rewritten = await rewrite_care_note_with_gemini(text, cat_display)
             if rewritten is None:
@@ -103,6 +104,7 @@ async def _handle_message(user_id: str, reply_token: Optional[str], ev: Dict[str
                 ai_failed = True
             else:
                 body = rewritten
+                ai_ok = True
 
         rec = CareRecord(
             line_user_id=user_id,
@@ -122,6 +124,11 @@ async def _handle_message(user_id: str, reply_token: Optional[str], ev: Dict[str
             await reply_text(
                 reply_token,
                 "AI変換に失敗しました。原文をそのまま記録しています。",
+            )
+        elif ai_ok:
+            await reply_text(
+                reply_token,
+                f"記録しました。（{cat_display}・AI整形済み）",
             )
         else:
             await reply_text(reply_token, f"記録しました。（{cat_display}）")
