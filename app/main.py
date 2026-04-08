@@ -58,19 +58,22 @@ def health():
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, db: Session = Depends(get_db)):
     rows = db.query(CareRecord).order_by(desc(CareRecord.created_at)).limit(200).all()
-    items = [
-        {
-            "id": r.id,
-            "created_jst": _to_jst(r.created_at),
-            "category": r.category or "未分類",
-            "line_user_id": r.line_user_id,
-            "message_text": r.message_text,
-        }
-        for r in rows
-    ]
+    # Jinja に渡す値はプリミティブのみ（ORM オブジェクトや入れ子 dict だと環境によって描画時に失敗する）
+    items = []
+    for r in rows:
+        items.append(
+            {
+                "id": int(r.id),
+                "created_jst": str(_to_jst(r.created_at)),
+                "category": str(r.category or "未分類"),
+                "line_user_id": str(r.line_user_id),
+                "message_text": str(r.message_text or ""),
+            }
+        )
     return templates.TemplateResponse(
+        request,
         "index.html",
-        {"request": request, "records": items, "count": len(items)},
+        {"records": items, "count": len(items)},
     )
 
 
