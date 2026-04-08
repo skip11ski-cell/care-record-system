@@ -94,28 +94,51 @@ def api_records(db: Session = Depends(get_db)):
     }
 
 
-@app.post("/callback")
-async def line_callback(
+async def _line_webhook_core(
     request: Request,
-    x_line_signature: Optional[str] = Header(None, alias="X-Line-Signature"),
-):
+    x_line_signature: Optional[str],
+) -> dict:
+    """LINE Messaging API の Webhook 本体（/callback と /webhook の両方から呼ぶ）。"""
     body = await request.body()
+    path = request.url.path
+    logger.info("LINE webhook: POST %s body_len=%d", path, len(body))
 
     secret = settings.line_channel_secret.strip()
     if settings.dev_skip_line_signature:
         logger.warning("DEV_SKIP_LINE_SIGNATURE: 署名検証をスキップしています")
     elif not secret:
+        logger.error("LINE_CHANNEL_SECRET が未設定です")
         raise HTTPException(status_code=500, detail="LINE_CHANNEL_SECRET が未設定です")
     elif not verify_line_signature(body, x_line_signature, secret):
+        logger.warning("LINE webhook: 署名が不正です path=%s", path)
         raise HTTPException(status_code=400, detail="Invalid signature")
 
     try:
         data = json.loads(body.decode("utf-8"))
     except json.JSONDecodeError:
+        logger.warning("LINE webhook: JSON でない body")
         raise HTTPException(status_code=400, detail="Invalid JSON")
 
     events = data.get("events") or []
+    logger.info("LINE webhook: events=%d path=%s", len(events), path)
     for ev in events:
         await handle_line_event(ev)
 
     return {"status": "ok"}
+
+
+@app.post("/callback")
+async def line_callback(
+    request: Request,
+    x_line_signature: Optional[str] = Header(None, alias="X-Line-Signature"),
+):
+    return await _line_webhook_core(request, x_line_signature)
+
+
+@app.post("/webhook")
+async def line_webhook_alias(
+    request: Request,
+    x_line_signature: Optional[str] = Header(None, alias="X-Line-Signature"),
+):
+    """LINE Developers で /webhook とだけ設定している場合用（中身は /callback と同一）。"""
+    return await _line_webhook_core(request, x_line_signature)

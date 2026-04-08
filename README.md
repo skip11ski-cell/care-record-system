@@ -27,7 +27,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 - 一覧: http://127.0.0.1:8000/
 - JSON: http://127.0.0.1:8000/api/records
-- Webhook URL（LINE に登録）: `https://（公開HTTPS）/callback`
+- Webhook URL（LINE に登録）: `https://（公開HTTPS）/callback` または同じホストの **`/webhook`**（どちらも同じ処理です）
 
 ローカルでは [ngrok](https://ngrok.com/) などで HTTPS のトンネルを張り、その URL + `/callback` を LINE の Webhook に設定してください。テスト時のみ `.env` で `DEV_SKIP_LINE_SIGNATURE=true` にすると署名なしの POST で動作確認できます（本番では使わないでください）。
 
@@ -100,7 +100,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ## 構成
 
-- `app/main.py` … FastAPI（`/callback`, `/`, `/api/records`）
+- `app/main.py` … FastAPI（`POST /callback` と `POST /webhook` は同一の LINE Webhook、`/`, `/api/records`）
 - `app/models.py` … 記録テーブル `care_records`
 - `care_records.db` … ローカル開発時は SQLite（初回起動時に自動作成）
 - `DATABASE_URL` … 設定時は PostgreSQL などに接続（クラウド本番向け）
